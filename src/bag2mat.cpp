@@ -1,0 +1,375 @@
+#include <string>
+#include <iostream>
+#include <ros/ros.h>
+#include <ros/topic.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <sensor_msgs/Imu.h>
+#include <std_msgs/Float64.h>
+#include <std_msgs/Int8.h>
+#include <std_msgs/Duration.h>
+#include <nav_msgs/Odometry.h>
+
+
+#include <boost/filesystem.hpp>
+#include <ros/package.h>
+
+// Matlab header, this is needed to save mat files
+// Note that we use the FindMatlab.cmake to get this
+#include "mat.h"
+
+#include <yaml-cpp/yaml.h>
+
+#include <chrono>
+#include <thread>
+
+
+using namespace std;
+
+
+bool handle_imu (string imuTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> dataIMU = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+
+        sensor_msgs::Imu::ConstPtr s1 = m.instantiate<sensor_msgs::Imu>();
+
+        if (s1 != NULL && m.getTopic() == imuTopic) {
+            dataIMU.push_back(m.getTime().toSec());
+            dataIMU.push_back(s1->linear_acceleration.x);
+            dataIMU.push_back(s1->linear_acceleration.y);
+            dataIMU.push_back(s1->linear_acceleration.z);
+            dataIMU.push_back(s1->angular_velocity.x);
+            dataIMU.push_back(s1->angular_velocity.y);
+            dataIMU.push_back(s1->angular_velocity.z);
+        }
+
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(dataIMU.size()/7,7,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<dataIMU.size(); i+=7) {
+        pt1[i/7] = dataIMU.at(i);
+        pt1[(i + dataIMU.size())/7] = dataIMU.at(i+1);
+        pt1[(i + 2*dataIMU.size())/7] = dataIMU.at(i+2);
+        pt1[(i + 3*dataIMU.size())/7] = dataIMU.at(i+3);
+        pt1[(i + 4*dataIMU.size())/7] = dataIMU.at(i+4);
+        pt1[(i + 5*dataIMU.size())/7] = dataIMU.at(i+5);
+        pt1[(i + 6*dataIMU.size())/7] = dataIMU.at(i+6);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<imuTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
+bool handle_odom (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+    geometry_msgs::Pose pos;
+    geometry_msgs::Twist twst;
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+
+        nav_msgs::Odometry::ConstPtr s1 = m.instantiate<nav_msgs::Odometry>();
+
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            
+            //data.push_back((*((*(*((*s1).pose))).pose)).position.x);
+            pos = s1->pose.pose;
+            twst = s1->twist.twist;
+            data.push_back(pos.position.x);
+            data.push_back(pos.position.y);
+            data.push_back(pos.position.z);
+            data.push_back(twst.linear.x);
+            data.push_back(twst.linear.y);
+            data.push_back(twst.linear.z);
+            data.push_back(pos.orientation.x);
+            data.push_back(pos.orientation.y);
+            data.push_back(pos.orientation.z);
+            data.push_back(pos.orientation.w);
+            data.push_back(twst.angular.x);
+            data.push_back(twst.angular.y);
+            data.push_back(twst.angular.z);
+        }
+
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/14,14,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=14) {
+        pt1[i/14] = data.at(i);
+        pt1[(i + data.size())/14] = data.at(i+1);
+        pt1[(i + 2*data.size())/14] = data.at(i+2);
+        pt1[(i + 3*data.size())/14] = data.at(i+3);
+        pt1[(i + 4*data.size())/14] = data.at(i+4);
+        pt1[(i + 5*data.size())/14] = data.at(i+5);
+        pt1[(i + 6*data.size())/14] = data.at(i+6);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+    
+bool handle_float64 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        // Handle IMU message
+        std_msgs::Float64::ConstPtr s1 = m.instantiate<std_msgs::Float64>();
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->data);
+        }
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/2,2,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=2) {
+        pt1[i/2] = data.at(i);
+        pt1[(i + data.size())/2] = data.at(i+1);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
+bool handle_int8 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        // Handle IMU message
+        std_msgs::Int8::ConstPtr s1 = m.instantiate<std_msgs::Int8>();
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->data);
+        }
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/2,2,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=2) {
+        pt1[i/2] = data.at(i);
+        pt1[(i + data.size())/2] = data.at(i+1);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
+bool handle_duration (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        // Handle IMU message
+        std_msgs::Duration::ConstPtr s1 = m.instantiate<std_msgs::Duration>();
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->data.toSec());
+        }
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/2,2,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=2) {
+        pt1[i/2] = data.at(i);
+        pt1[(i + data.size())/2] = data.at(i+1);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
+int main(int argc, char **argv) {
+
+
+    // Debug message
+    ROS_INFO("Starting up");
+
+    // Check if there is a path to a dataset
+    
+
+    string configFile;
+    
+    if(argc < 2) {
+        ROS_ERROR("Error please specify atleast rosbag file");
+        ROS_ERROR("Command Example: rosrun bag2mat bag2mat <rosbag> [<config_file>]");
+        return EXIT_FAILURE;
+    }
+
+    else if(argc < 3) {
+        ROS_INFO("config not specified using default config");
+        configFile = ros::package::getPath("bag2mat")+"/config/bag2mat_config.yaml";
+    }
+    
+    else if(argc == 3) {
+       // string imuTopic = argv[2];
+        configFile = argv[2];        
+    }
+    else {
+        ROS_ERROR("Too many arguments");
+        ROS_ERROR("Command Example: rosrun bag2mat bag2mat <rosbag> [<config_file>]");
+        return EXIT_FAILURE;
+    }
+    
+    string imuTopic = "/seabed/imu/data";
+
+    // Startup this node
+    ros::init(argc, argv, "bag2mat");
+    
+    // Parse the input
+
+    string pathBag = argv[1];
+
+    ROS_INFO_STREAM("Using config file: "<<configFile);
+    YAML::Node node = YAML::LoadFile(configFile);
+    assert(node.Type() == YAML::NodeType::Sequence);
+    assert(node.IsSequence());  // a shortcut!
+    
+    std::vector<std::vector<std::string>> topics;
+    
+    for (YAML::const_iterator it=node.begin();it!=node.end();++it) {
+        topics.push_back(it->as<std::vector<std::string>>());
+    }    
+
+    // Get path
+    boost::filesystem::path p(pathBag);
+    string pathParent = p.parent_path().string();
+    string pathMat;
+    if(!pathParent.empty()) {
+        pathMat = pathParent+"/"+p.stem().string()+".mat";
+    } else {
+        pathMat = p.stem().string()+".mat";
+    }
+
+
+    // Load rosbag here, and find messages we can play
+    rosbag::Bag bag;
+    bag.open(pathBag, rosbag::bagmode::Read);
+
+    rosbag::View view(bag);
+        
+
+
+    // We should load the bag as a view
+    // Here we go from beginning of the bag to the end of the bag
+
+    // Debug
+    ROS_INFO("BAG Path is: %s", pathBag.c_str());
+    ROS_INFO("MAT Path is: %s", pathMat.c_str());
+    ROS_INFO("Reading in rosbag file...");
+
+
+    // Create the matlab mat file
+    MATFile *pmat = matOpen(pathMat.c_str(), "w");
+    if (pmat == NULL) {
+        ROS_ERROR("Error could not create the mat file");
+        return(EXIT_FAILURE);
+    }
+    
+    //bool handle_imu (string, rosbag::Bag*, MATFile*);         
+
+    for ( std::vector<std::vector<string>>::size_type i = 0; i < topics.size(); i++ )
+    {
+     //  for ( std::vector<string>::size_type j = 0; j < topics[i].size(); j++ )
+     //   {
+     //     std::cout << topics[i][j] << ' ';
+     //  }
+     //  std::cout << std::endl;
+     
+        if (topics[i][1]=="Imu") handle_imu (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Float64") handle_float64 (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Int8") handle_int8 (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Odometry") handle_odom (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Duration") handle_duration (topics[i][0], view, pmat, topics[i][2] ) ;
+    }
+
+
+//    handle_imu ("/seabed/imu/data_raw", view, pmat, "imu_data_raw" ) ;
+
+
+    ROS_INFO("Done processing bag");
+
+    // Close the mat file
+    
+    
+    if (matClose(pmat) != 0) {
+        ROS_ERROR("Error closing the mat file");
+        return(EXIT_FAILURE);
+    }
+    
+//    ROS_INFO("Press ctrl+c to exit...");
+
+//    while (true) {std::this_thread::sleep_for(std::chrono::milliseconds(100));}
+    
+    return EXIT_SUCCESS;
+}
