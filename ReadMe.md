@@ -24,20 +24,18 @@ Basically specify a list of -[topic name, message type, name for variable in mat
    * Add include line similar to `#include <nav_msgs/Odometry.h>`
    * Create a function to handle your custom message similar to:
    ```
-   bool handle_odom (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    bool handle_odom (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
     geometry_msgs::Pose pos;
     geometry_msgs::Twist twst;
 
     // Step through the rosbag and send to algo methods
     for (const rosbag::MessageInstance& m : view) {
-
         nav_msgs::Odometry::ConstPtr s1 = m.instantiate<nav_msgs::Odometry>();
 
         if (s1 != NULL && m.getTopic() == msgTopic) {
             data.push_back(m.getTime().toSec());
             
-            //data.push_back((*((*(*((*s1).pose))).pose)).position.x);
             pos = s1->pose.pose;
             twst = s1->twist.twist;
             data.push_back(pos.position.x);
@@ -57,7 +55,11 @@ Basically specify a list of -[topic name, message type, name for variable in mat
 
     }
 
-    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/14,14,mxREAL);
+    size_t no_of_cols = 14;       // update this line to count number of entries being added above 
+    
+    ROS_ASSERT_MSG(data.size()%no_of_cols == 0, "The no_of_cols set in bag2mat.cpp doen't match number of entries");
+        
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/no_of_cols,no_of_cols,mxREAL);
     if (pa1 == NULL) {
         printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
         printf("Unable to create mxArray.\n");
@@ -65,21 +67,20 @@ Basically specify a list of -[topic name, message type, name for variable in mat
     }
     // Correctly copy data over (column-wise)
     double* pt1 = mxGetPr(pa1);
-    for(size_t i=0; i<data.size(); i+=14) {
-        pt1[i/14] = data.at(i);
-        pt1[(i + data.size())/14] = data.at(i+1);
-        pt1[(i + 2*data.size())/14] = data.at(i+2);
-        pt1[(i + 3*data.size())/14] = data.at(i+3);
-        pt1[(i + 4*data.size())/14] = data.at(i+4);
-        pt1[(i + 5*data.size())/14] = data.at(i+5);
-        pt1[(i + 6*data.size())/14] = data.at(i+6);
+    for(size_t i=0; i<data.size(); i+=no_of_cols) {
+
+        for(size_t col_iter = 0; col_iter<no_of_cols; col_iter+=1) {
+        pt1[(i + col_iter * data.size())/no_of_cols] = data.at(i+col_iter);
+        }
     }
+    
     // Add it to the matlab mat file
     int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
     if(status != 0) {
         printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
         return(EXIT_FAILURE);
-    }    
+    }
+    
     mxDestroyArray(pa1);
     ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
     return 0;
