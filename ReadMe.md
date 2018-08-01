@@ -84,7 +84,7 @@ Basically specify a list of -[topic name, message type, name for variable in mat
     mxDestroyArray(pa1);
     ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
     return 0;
-}
+   }
    ```
 
    * Add an elif line in main to handle the custom message similar to: `else if (topics[i][1]=="Odometry") handle_odom (topics[i][0], view, pmat, topics[i][2] ) ;`
