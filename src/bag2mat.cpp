@@ -36,6 +36,30 @@
 
 using namespace std;
 
+bool get_starttime (rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    double data = view.getBeginTime().toSec();
+
+    mxArray *pa1 = mxCreateDoubleMatrix(1,1,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    pt1[0] = data;
+    
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing starttime to : "<<matlab_label);
+    return 0;
+}
 
 bool handle_imu (string imuTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
@@ -680,7 +704,9 @@ int main(int argc, char **argv) {
         return(EXIT_FAILURE);
     }
     
-    //bool handle_imu (string, rosbag::Bag*, MATFile*);         
+    //bool handle_imu (string, rosbag::Bag*, MATFile*); 
+    
+    get_starttime(view, pmat, "start_time") ;        
 
     for ( std::vector<std::vector<string>>::size_type i = 0; i < topics.size(); i++ )
     {
