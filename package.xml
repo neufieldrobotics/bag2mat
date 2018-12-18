@@ -22,7 +22,8 @@
   <build_depend>nav_msgs</build_depend>
   <build_depend>rosbag</build_depend>
   <build_depend>roslib</build_depend>
-
+  <build_depend>rosfly_core</build_depend>
+  <build_depend>geometry_msgs</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>roscpp</run_depend>

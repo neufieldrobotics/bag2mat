@@ -14,8 +14,8 @@ find_package(yaml-cpp REQUIRED)
 
 
 # Find catkin (the ROS build system)
-find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib)
-
+find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib rosfly_core REQUIRED apriltags2_ros REQUIRED)
+#rosfly_core REQUIRED apriltags2_ros REQUIRED
 
 # Describe catkin Project
 catkin_package(
@@ -73,6 +73,6 @@ list(APPEND parser_libraries
 # Make binary for the offline reader
 ##################################################
 add_executable(bag2mat
-        src/bag2mat.cpp
+        src/bag2mat.cpp 
 )
 target_link_libraries(bag2mat ${parser_libraries})
