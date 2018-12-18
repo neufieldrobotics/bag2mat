@@ -10,6 +10,7 @@
 #include <geometry_msgs/Quaternion.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/Joy.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Int8.h>
 #include <std_msgs/Duration.h>
@@ -387,6 +388,53 @@ bool handle_navsat (string msgTopic, rosbag::View& view, MATFile *pmat, string m
     return 0;
 }
 
+bool handle_joy (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+    
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        sensor_msgs::Joy::ConstPtr s1 = m.instantiate<sensor_msgs::Joy>();
+
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->axes[0]);
+            data.push_back(s1->axes[1]);
+            data.push_back(s1->axes[2]);
+        }
+
+    }
+
+    size_t no_of_cols = 4;       // update this line to count number of entries being added above 
+    
+    ROS_ASSERT_MSG(data.size()%no_of_cols == 0, "The no_of_cols set in bag2mat.cpp doen't match number of entries");
+        
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/no_of_cols,no_of_cols,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=no_of_cols) {
+
+        for(size_t col_iter = 0; col_iter<no_of_cols; col_iter+=1) {
+        pt1[(i + col_iter * data.size())/no_of_cols] = data.at(i+col_iter);
+        }
+    }
+    
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
 bool handle_vector3 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
     
@@ -648,11 +696,11 @@ int main(int argc, char **argv) {
         else if (topics[i][1]=="Odometry") handle_odom (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Duration") handle_duration (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="NavSatFix") handle_navsat (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Joy") handle_joy (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Vector3") handle_vector3 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="PoseStamped") handle_posestamped (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="AprilTagDetectionArray") handle_apriltag (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="currentgoal") handle_currentgoal (topics[i][0], view, pmat, topics[i][2] ) ;
-
     }
 
 
