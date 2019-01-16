@@ -13,6 +13,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Joy.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Float32.h>
 #include <std_msgs/Int8.h>
 #include <std_msgs/Duration.h>
 #include <nav_msgs/Odometry.h>
@@ -592,6 +593,44 @@ bool handle_float64 (string msgTopic, rosbag::View& view, MATFile *pmat, string 
     return 0;
 }
 
+bool handle_float32 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        // Handle IMU message
+        std_msgs::Float32::ConstPtr s1 = m.instantiate<std_msgs::Float32>();
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->data);
+        }
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/2,2,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=2) {
+        pt1[i/2] = data.at(i);
+        pt1[(i + data.size())/2] = data.at(i+1);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+
+
 bool handle_int8 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
 
@@ -767,6 +806,7 @@ int main(int argc, char **argv) {
      
         if (topics[i][1]=="Imu") handle_imu (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Float64") handle_float64 (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="Float32") handle_float32 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Int8") handle_int8 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Odometry") handle_odom (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Duration") handle_duration (topics[i][0], view, pmat, topics[i][2] ) ;

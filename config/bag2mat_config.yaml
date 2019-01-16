@@ -7,7 +7,7 @@
 - [/uas4/dji_sdk/rc, Joy, rc]
 - [/uas4/dji_sdk/flight_control_setpoint_generic, Joy, cmd_vel_joy]
 - [/uas4/dji_sdk/velocity, Vector3Stamped, velocity]
-#- ['/uas4/dji_sdk/height_above_takeoff',Float32,fusedHeight]
+- [/uas4/dji_sdk/height_above_takeoff, Float32, fusedHeight]
 #- ['/uas4/dji_sdk/flight_status',UInt8,flight_status]
 #- ['/uas4/basegoal_enuMarker',PoseArray,basegoalArray_enu]
 #- ['/camera_array/cam0/camera_info',CameraInfo,CameraInfoMsg]
