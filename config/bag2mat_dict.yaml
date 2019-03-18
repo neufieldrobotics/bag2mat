@@ -1,0 +1,19 @@
+geometry_msgs/TwistStamped: t.to_sec(), m.twist.linear.x, m.twist.linear.y, m.twist.linear.z, m.twist.angular.x, m.twist.angular.y, m.twist.angular.z
+nav_msgs/Odometry: t.to_sec(), m.pose.pose.position.x, m.pose.pose.position.y, m.pose.pose.position.z, m.twist.twist.linear.x, m.twist.twist.linear.y, m.twist.twist.linear.z, m.pose.pose.orientation.x, m.pose.pose.orientation.y, m.pose.pose.orientation.z, m.pose.pose.orientation.w, m.twist.twist.angular.x, m.twist.twist.angular.y, m.twist.twist.angular.z
+sensor_msgs/BatteryState: 
+sensor_msgs/Imu: t.to_sec(), m.linear_acceleration.x, m.linear_acceleration.y, m.linear_acceleration.z, m.angular_velocity.x, m.angular_velocity.y, m.angular_velocity.z
+sensor_msgs/JointState:
+sensor_msgs/MagneticField: t.to_sec(), m.magnetic_field.x, m.magnetic_field.y, m.magnetic_field.z
+sensor_msgs/NavSatFix: t.to_sec(), m.latitude, m.longitude, m.altitude
+sensor_msgs/Temperature: t.to_sec(), m.temperature
+sensor_msgs/TimeReference:
+std_msgs/Duration: t.to_sec(), m.data.to_sec()
+std_msgs/Float64: t.to_sec(), m.data
+std_msgs/Float64MultiArray:
+std_msgs/Int8: t.to_sec(), m.data
+std_msgs/String: t.to_sec(), m.data
+tf2_msgs/TFMessage: 
+# Custom messages
+seabed_drivers/DvlMeasurements: 
+seabed_drivers/ThrusterData: t.to_sec(), m.prop_rpm, m.omega, m.voltage, m.current, m.temperature  
+

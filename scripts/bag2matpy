@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+@author: Vikrant Shah
+A simple script that can converts rosmessages to matlab mat files
+Define the translation of each message type in a dictionary file and use a 
+config file to specify all the topics to be converted.
+"""
+from __future__ import print_function
+
+import roslib
+import rospy
+import rostopic
+
+import argparse
+import importlib
+import sys
+import rospkg
+import rosbag
+import numpy as np
+import time
+from scipy.io import savemat
+import os
+import yaml
+
+
+def save_topic2file(topic_name,variable_name,expression,bagfile,matfile):
+    data_array = []
+    for topic, msg, ts in bagfile.read_messages(topics=[topic_name]):
+        res = eval("{}".format(expression), {'m': msg, 't':ts})
+        #print (ts.to_sec())
+        data_array.append(res)
+    if data_array:    
+        savemat(matfile, {variable_name: np.array(data_array)})
+        print("Wrote topic: ",topic_name," to variable: ",variable_name)
+    else:
+        print("Topic: ",topic_name," not found!")
+
+# get the file path for rospy_tutorials
+rospack = rospkg.RosPack()
+
+parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter,
+            description='Convert ROSBAG to mat file.\n\n'
+                        'A simple script that can converts rosmessages to matlab mat files. \
+                         \nDefine the translation of each message type in a dictionary file and use a config file to specify all the topics to be converted..\n\n'
+                        )
+parser.add_argument('input_bagfile', help='Input rosbag file to input')
+parser.add_argument('-c','--config_file', help='Yaml file which specifies topic names to convert',
+                    default =rospack.get_path('bag2mat')+'/config/bag2matpy_config.yaml')
+parser.add_argument('-d','--dictionary', help='Dictionary file which specifies how to read the topic',
+                    default =rospack.get_path('bag2mat')+'/config/bag2mat_dict.yaml')
+
+args = parser.parse_args()
+
+with open(args.dictionary, 'r') as f:
+    exp_dic = yaml.load(f)
+
+with open(args.config_file, 'r') as f:
+    config = yaml.load(f)
+
+if config['namespace'] is None:
+    ns = ''
+else:
+    ns = '/'+config['namespace']        
+
+print(args)
+
+bag = rosbag.Bag(args.input_bagfile)
+output_mat = args.input_bagfile.replace('bag','mat')
+if os.path.exists(output_mat):
+    print("File Already Exited, over-writing - ",output_mat)
+else:
+    print("Writing to file - ",output_mat)
+    
+    
+#expression = "t.to_sec(), m.linear_acceleration.x, m.linear_acceleration.y, m.linear_acceleration.z, m.angular_velocity.x, m.angular_velocity.y, m.angular_velocity.z" 
+#topic_name = '/imu/data'
+
+with open(output_mat,'wb',0) as ofile:
+    savemat(ofile, {'start_time': bag.get_start_time() })
+    for topic in config['topic_list']:
+        topic_name = ns+topic[0]
+        msg_type = topic[1]
+        variable_name = topic[2]
+        expression = exp_dic[msg_type]
+        save_topic2file(topic_name, variable_name, expression, bag, ofile)
+ 
+bag.close()    
+
+'''
+        self.modules = {}
+        for module in args.modules:
+            try:
+                mod = importlib.import_module(module)
+            except ImportError:
+                print('Failed to import module: %s' % module, file=sys.stderr)
+            else:
+                self.modules[module] = mod
+
+        self.expression = args.expression
+
+        input_class, input_topic, self.input_fn = rostopic.get_topic_class(
+            args.input, blocking=args.wait_for_start)
+        if input_topic is None:
+            print('ERROR: Wrong input topic (or topic field): %s' % args.input, file=sys.stderr)
+            sys.exit(1)
+
+        self.output_class = roslib.message.get_message_class(args.output_type)
+
+        self.sub = rospy.Subscriber(input_topic, input_class, self.callback)
+        self.pub = rospy.Publisher(args.output_topic, self.output_class, queue_size=1, latch=args.latch)
+
+
+class TopicOp:
+
+    def __init__(self):
+        
+
+    def callback(self, m):
+        if self.input_fn is not None:
+            m = self.input_fn(m)
+
+        try:
+            res = eval("{}".format(self.expression), self.modules, {'m': m})
+        except NameError as e:
+            print("Expression using variables other than 'm': %s" % e.message, file=sys.stderr)
+        except UnboundLocalError as e:
+            print('Wrong expression:%s' % e.message, file=sys.stderr)
+        except Exception:
+            raise
+        else:
+            if not isinstance(res, (list, tuple)):
+                res = [res]
+            self.pub.publish(*res)
+
+'''

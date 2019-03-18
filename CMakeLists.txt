@@ -6,24 +6,14 @@ project(bag2mat)
 # Include our cmake files
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
-# Include libraries
-find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
-find_package(Matlab 3 REQUIRED)
-find_package(yaml-cpp REQUIRED)
-
-
 # Find catkin (the ROS build system)
 find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib)
 
-
 # Describe catkin Project
 catkin_package(
-        DEPENDS Eigen3 Boost
         CATKIN_DEPENDS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib
-        INCLUDE_DIRS src
+#        INCLUDE_DIRS src
 )
-
 
 # Try to compile with c++11
 # http://stackoverflow.com/a/25836953
@@ -44,35 +34,45 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-sign
 # Enable debug flags (use if you want to debug in gdb)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3  -Wall")
 
-
-
 # Include our header files
-include_directories(
-        src
-        ${EIGEN3_INCLUDE_DIR}
-        ${Boost_INCLUDE_DIRS}
-        ${MATLAB_INCLUDE_DIR}
-        ${catkin_INCLUDE_DIRS}
-        ${YAML_CPP_INCLUDE_DIR}
-)
+#include_directories(
+#        src
+#        ${catkin_INCLUDE_DIRS}
+#)
 
 # Set link libraries used by all binaries
 list(APPEND parser_libraries
-        ${Boost_LIBRARIES}
-        ${MATLAB_LIBRARIES}
-        ${MATLAB_MX_LIBRARY}
-        ${MATLAB_MEX_LIBRARY}
-        ${MATLAB_MAT_LIBRARY}
-        ${MATLAB_ENG_LIBRARY}
         ${catkin_LIBRARIES}
-        yaml-cpp
 )
 
 
 ##################################################
 # Make binary for the offline reader
 ##################################################
-add_executable(bag2mat
-        src/bag2mat.cpp
+#add_executable(bag2mat
+#        src/bag2mat.cpp
+#)
+#target_link_libraries(bag2mat ${parser_libraries})
+
+#############
+## Install ##
+#############
+
+# all install targets should use catkin DESTINATION variables
+# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
+
+## Mark executable scripts (Python etc.) for installation
+## in contrast to setup.py, you can choose the destination
+# install(PROGRAMS
+#   scripts/my_python_script
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
+catkin_install_python(PROGRAMS
+  scripts/bag2matpy
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-target_link_libraries(bag2mat ${parser_libraries})
+
+install(
+  DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
