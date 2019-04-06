@@ -15,13 +15,9 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
-  <run_depend>std_msgs</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>nav_msgs</run_depend>
   <run_depend>rosbag</run_depend>
   <run_depend>roslib</run_depend>
   <run_depend>rospkg</run_depend>
-  <run_depend>rosbag</run_depend>
 
 </package>
 

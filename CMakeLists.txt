@@ -7,11 +7,11 @@ project(bag2mat)
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 # Find catkin (the ROS build system)
-find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib)
+find_package(catkin REQUIRED COMPONENTS rosbag roslib)
 
 # Describe catkin Project
 catkin_package(
-        CATKIN_DEPENDS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib
+        CATKIN_DEPENDS 
 #        INCLUDE_DIRS src
 )
 
