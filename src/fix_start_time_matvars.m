@@ -1,0 +1,11 @@
+cmd_vel(:,1)=cmd_vel(:,1)-start_time;
+cmd_vel_joy(:,1)=cmd_vel_joy(:,1)-start_time;
+flight_status(:,1)=flight_status(:,1)-start_time;
+fusedHeight(:,1)=fusedHeight(:,1)-start_time;
+gps_fix(:,1)=gps_fix(:,1)-start_time;
+homePose(:,1)=homePose(:,1)-start_time;
+imu_data(:,1)=imu_data(:,1)-start_time;
+rc(:,1)=rc(:,1)-start_time;
+takeoffAltitude(:,1)=takeoffAltitude(:,1)-start_time;
+uas_odom(:,1)=uas_odom(:,1)-start_time;
+velocity(:,1)=velocity(:,1)-start_time;

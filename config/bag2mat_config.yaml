@@ -1,14 +1,38 @@
-- [/uas4/rpy_deg, Vector3, rpy_deg]
-- [/uas4/dji_sdk/gps_position, NavSatFix, gps_fix]
-- [/uas4/uaspose, PoseStamped, uaspose]
-- [/uas4/currentgoal_enu, currentgoal, currentgoal_enu]
-- [/tag_detections, AprilTagDetectionArray, tag_detectionsArray]
-- [/uas4/dji_sdk/imu, Imu, imu_data]
-- [/uas4/dji_sdk/rc, Joy, rc]
-- [/uas4/dji_sdk/flight_control_setpoint_generic, Joy, cmd_vel_joy]
-- [/uas4/dji_sdk/velocity, Vector3Stamped, velocity]
-- [/uas4/dji_sdk/height_above_takeoff, Float32, fusedHeight]
-#- ['/uas4/dji_sdk/flight_status',UInt8,flight_status]
-#- ['/uas4/basegoal_enuMarker',PoseArray,basegoalArray_enu]
+- [/uas1/dji_sdk/flight_status, UInt8, flight_status]
+- [/uas1/dji_sdk/gps_position, NavSatFix, gps_fix]
+- [/uas1/dji_sdk/imu, Imu, imu_data]
+- [/uas1/dji_sdk/rc, Joy, rc]
+- [/uas1/dji_sdk/flight_control_setpoint_generic, Joy, cmd_vel_joy]
+- [/uas1/dji_sdk/velocity, Vector3Stamped, velocity]
+- [/uas1/dji_sdk/height_above_takeoff, Float32, fusedHeight]
+- [/uas1/simplenav/odom, Odometry, uas_odom]
+- [/uas1/simplenav/takeoffAltitude, Float64, takeoffAltitude]
+- [/uas1/simplenav/homePose, PoseStamped, homePose]
+- [/uas1/simplenav/cmd_vel, TwistStamped, cmd_vel]
+#- [/tag_detections, AprilTagDetectionArray, tag_detectionsArray]
 #- ['/camera_array/cam0/camera_info',CameraInfo,CameraInfoMsg]
 #- ['/camera_array/cam0/image_raw',Image,images]
+
+
+
+#$robot_ns/dji_sdk/flight_status \
+#$robot_ns/dji_sdk/gps_health \
+#$robot_ns/dji_sdk/gps_position \
+#$robot_ns/dji_sdk/height_above_takeoff \
+#$robot_ns/dji_sdk/imu \
+#$robot_ns/dji_sdk/rc \
+#$robot_ns/dji_sdk/velocity \
+#$robot_ns/dji_sdk/flight_control_setpoint_generic \
+# - $robot_ns/dji_sdk/battery_state \ battery msg
+#$robot_ns/odom \
+#$robot_ns/takeoffAltitude \
+#$robot_ns/homePose \
+#$robot_ns/cmd_vel \
+#$robot_ns/joint_states \
+#$robot_ns/navigator/cancel \
+#$robot_ns/navigator/feedback \
+#$robot_ns/navigator/goal \
+# - $robot_ns/navigator/result \
+# - $robot_ns/navigator/status \
+#/camera_array/cam0/camera_info \
+#/camera_array/cam0/image_raw 

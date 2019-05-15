@@ -14,8 +14,7 @@ find_package(yaml-cpp REQUIRED)
 
 
 # Find catkin (the ROS build system)
-find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib rosfly_core REQUIRED apriltags2_ros REQUIRED)
-#rosfly_core REQUIRED apriltags2_ros REQUIRED
+find_package(catkin REQUIRED COMPONENTS roscpp nav_msgs std_msgs sensor_msgs nav_msgs rosbag roslib rosfly_core simplenav apriltags2_ros REQUIRED)
 
 # Describe catkin Project
 catkin_package(

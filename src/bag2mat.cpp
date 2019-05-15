@@ -7,6 +7,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Quaternion.h>
 #include <sensor_msgs/Imu.h>
@@ -14,12 +15,14 @@
 #include <sensor_msgs/Joy.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/UInt8.h>
 #include <std_msgs/Int8.h>
 #include <std_msgs/Duration.h>
 #include <nav_msgs/Odometry.h>
 #include <apriltags2_ros/AprilTagDetectionArray.h>
 #include <apriltags2_ros/AprilTagDetection.h>
 #include <rosfly_core/currentgoal.h>
+#include <simplenav/NavigatorActionFeedback.h>
 
 
 
@@ -118,6 +121,58 @@ bool handle_imu (string imuTopic, rosbag::View& view, MATFile *pmat, string matl
     return 0;
 }
 
+bool handle_twiststamped (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+    geometry_msgs::Twist twst;
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        geometry_msgs::TwistStamped::ConstPtr s1 = m.instantiate<geometry_msgs::TwistStamped>();
+
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            
+            twst = s1->twist;
+            data.push_back(twst.linear.x);
+            data.push_back(twst.linear.y);
+            data.push_back(twst.linear.z);
+            data.push_back(twst.angular.x);
+            data.push_back(twst.angular.y);
+            data.push_back(twst.angular.z);
+        }
+
+    }
+
+    size_t no_of_cols = 7;       // update this line to count number of entries being added above 
+    
+    ROS_ASSERT_MSG(data.size()%no_of_cols == 0, "The no_of_cols set in bag2mat.cpp doen't match number of entries");
+        
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/no_of_cols,no_of_cols,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=no_of_cols) {
+
+        for(size_t col_iter = 0; col_iter<no_of_cols; col_iter+=1) {
+        pt1[(i + col_iter * data.size())/no_of_cols] = data.at(i+col_iter);
+        }
+    }
+    
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
 bool handle_odom (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
     geometry_msgs::Pose pos;
@@ -179,7 +234,69 @@ bool handle_odom (string msgTopic, rosbag::View& view, MATFile *pmat, string mat
     ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
     return 0;
 }
+/*
+bool handle_navFeedback (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+    geometry_msgs::Pose pos;
+    geometry_msgs::Twist twst;
 
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        nav_msgs::Odometry::ConstPtr s1 = m.instantiate<nav_msgs::Odometry>();
+
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            
+            pos = s1->pose.pose;
+            twst = s1->twist.twist;
+            data.push_back(pos.position.x);
+            data.push_back(pos.position.y);
+            data.push_back(pos.position.z);
+            data.push_back(twst.linear.x);
+            data.push_back(twst.linear.y);
+            data.push_back(twst.linear.z);
+            data.push_back(pos.orientation.x);
+            data.push_back(pos.orientation.y);
+            data.push_back(pos.orientation.z);
+            data.push_back(pos.orientation.w);
+            data.push_back(twst.angular.x);
+            data.push_back(twst.angular.y);
+            data.push_back(twst.angular.z);
+        }
+
+    }
+
+    size_t no_of_cols = 14;       // update this line to count number of entries being added above 
+    
+    ROS_ASSERT_MSG(data.size()%no_of_cols == 0, "The no_of_cols set in bag2mat.cpp doen't match number of entries");
+        
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/no_of_cols,no_of_cols,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=no_of_cols) {
+
+        for(size_t col_iter = 0; col_iter<no_of_cols; col_iter+=1) {
+        pt1[(i + col_iter * data.size())/no_of_cols] = data.at(i+col_iter);
+        }
+    }
+    
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
+*/
 bool handle_posestamped (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
     geometry_msgs::Pose pos;
@@ -426,11 +543,13 @@ bool handle_joy (string msgTopic, rosbag::View& view, MATFile *pmat, string matl
             data.push_back(s1->axes[0]);
             data.push_back(s1->axes[1]);
             data.push_back(s1->axes[2]);
+            data.push_back(s1->axes[3]);
+            data.push_back(s1->axes[4]);
         }
 
     }
 
-    size_t no_of_cols = 4;       // update this line to count number of entries being added above 
+    size_t no_of_cols = 6;       // update this line to count number of entries being added above 
     
     ROS_ASSERT_MSG(data.size()%no_of_cols == 0, "The no_of_cols set in bag2mat.cpp doen't match number of entries");
         
@@ -631,6 +750,42 @@ bool handle_float32 (string msgTopic, rosbag::View& view, MATFile *pmat, string 
 }
 
 
+bool handle_uint8 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
+    vector<double> data = vector<double>();
+
+    // Step through the rosbag and send to algo methods
+    for (const rosbag::MessageInstance& m : view) {
+        // Handle IMU message
+        std_msgs::UInt8::ConstPtr s1 = m.instantiate<std_msgs::UInt8>();
+        if (s1 != NULL && m.getTopic() == msgTopic) {
+            data.push_back(m.getTime().toSec());
+            data.push_back(s1->data);
+        }
+    }
+
+    mxArray *pa1 = mxCreateDoubleMatrix(data.size()/2,2,mxREAL);
+    if (pa1 == NULL) {
+        printf("%s : Out of memory on line %d\n", __FILE__, __LINE__);
+        printf("Unable to create mxArray.\n");
+        return(EXIT_FAILURE);
+    }
+    // Correctly copy data over (column-wise)
+    double* pt1 = mxGetPr(pa1);
+    for(size_t i=0; i<data.size(); i+=2) {
+        pt1[i/2] = data.at(i);
+        pt1[(i + data.size())/2] = data.at(i+1);
+    }
+    // Add it to the matlab mat file
+    int status = matPutVariable(pmat, matlab_label.c_str(), pa1);
+    if(status != 0) {
+        printf("%s :  Error using matPutVariable on line %d\n", __FILE__, __LINE__);
+        return(EXIT_FAILURE);
+    }
+    
+    mxDestroyArray(pa1);
+    ROS_INFO_STREAM("Finished writing topic: "<<msgTopic<<" to variable: "<<matlab_label);
+    return 0;
+}
 bool handle_int8 (string msgTopic, rosbag::View& view, MATFile *pmat, string matlab_label ) {
     vector<double> data = vector<double>();
 
@@ -807,6 +962,7 @@ int main(int argc, char **argv) {
         if (topics[i][1]=="Imu") handle_imu (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Float64") handle_float64 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Float32") handle_float32 (topics[i][0], view, pmat, topics[i][2] ) ;
+        else if (topics[i][1]=="UInt8") handle_uint8 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Int8") handle_int8 (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Odometry") handle_odom (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="Duration") handle_duration (topics[i][0], view, pmat, topics[i][2] ) ;
@@ -817,6 +973,10 @@ int main(int argc, char **argv) {
         else if (topics[i][1]=="PoseStamped") handle_posestamped (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="AprilTagDetectionArray") handle_apriltag (topics[i][0], view, pmat, topics[i][2] ) ;
         else if (topics[i][1]=="currentgoal") handle_currentgoal (topics[i][0], view, pmat, topics[i][2] ) ;
+        //handle_navFeedback
+        else if (topics[i][1]=="TwistStamped") handle_twiststamped (topics[i][0], view, pmat, topics[i][2] ) ;
+
+
     }
 
 
