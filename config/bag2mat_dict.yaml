@@ -21,4 +21,3 @@ tf2_msgs/TFMessage:
 # Custom messages
 seabed_drivers/DvlMeasurements: 
 seabed_drivers/ThrusterData: t.to_sec(), m.prop_rpm, m.omega, m.voltage, m.current, m.temperature  
-
