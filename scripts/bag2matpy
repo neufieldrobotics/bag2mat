@@ -24,20 +24,25 @@ from scipy.io import savemat
 import os
 import yaml
 import logging
-import progressbar
-progressbar.streams.wrap_stderr()
+#import progressbar
+#progressbar.streams.wrap_stderr()
 
 bglog = logging.getLogger("bag2matpy")
 logging.basicConfig(level=logging.INFO, format='%(levelname)8s  %(message)s')
 
 
-def save_topic2file(topic_name,variable_name,expression,bagfile,matfile):
+def save_topic2file(topic_name,variable_name,expression,bagfile,matfile, start_time, offset_time_flag):
     bglog = logging.getLogger(__name__)
     data_array = []
     for topic, msg, ts in bagfile.read_messages(topics=[topic_name]):
-        res = eval("{}".format(expression), {'m': msg, 't':ts})
-        #print (ts.to_sec())
+        res = eval("{}".format(expression),{'np':np}, {'m': msg, 't':ts})
+
+        if offset_time_flag:
+            offset_time = ts.to_sec() - start_time
+            res = np.hstack([offset_time,res])
+        
         data_array.append(res)
+
     if data_array:    
         savemat(matfile, {variable_name: np.array(data_array)})
         bglog.info("Wrote topic: "+topic_name+" to variable: "+variable_name)
@@ -53,11 +58,13 @@ parser = argparse.ArgumentParser(
                         'A simple script that can converts rosmessages to matlab mat files. \
                          \nDefine the translation of each message type in a dictionary file and use a config file to specify all the topics to be converted..\n\n'
                         )
-parser.add_argument('input_bagfile', help='Input rosbag file to input')
+parser.add_argument('--input_bagfile', help='Input rosbag file to input')
 parser.add_argument('-c','--config_file', help='Yaml file which specifies topic names to convert',
                     default =rospack.get_path('bag2mat')+'/config/bag2matpy_config.yaml')
 parser.add_argument('-d','--dictionary', help='Dictionary file which specifies how to read the topic',
                     default =rospack.get_path('bag2mat')+'/config/bag2mat_dict.yaml')
+parser.add_argument('--offset_time_flag', help='Boolean flag to specify whether to include offset_time from bag start_time for every topic',
+                    default =False)
 
 args = parser.parse_args()
 
@@ -67,6 +74,8 @@ with open(args.dictionary, 'r') as f:
 with open(args.config_file, 'r') as f:
     config = yaml.safe_load(f)
 
+offset_time_flag = bool(args.offset_time_flag)
+
 if config['namespace'] is None:
     ns = ''
 else:
@@ -75,7 +84,7 @@ else:
 bag = rosbag.Bag(args.input_bagfile)
 output_mat = args.input_bagfile.replace('bag','mat')
 if os.path.exists(output_mat):
-    bglog.warn("File Already Exited, over-writing - "+output_mat)
+    bglog.warn("File Already Exits, over-writing - "+output_mat)
 else:
     bglog.info("Writing to file - "+output_mat)
     
@@ -85,11 +94,17 @@ else:
 
 with open(output_mat,'wb',0) as ofile:
     savemat(ofile, {'start_time': bag.get_start_time() })
-    for topic in progressbar.progressbar(config['topic_list']):
+    start_time = bag.get_start_time()
+    #for topic in progressbar.progressbar(config['topic_list']):
+    for topic in config['topic_list']:
         topic_name = ns+topic[0]
         msg_type = topic[1]
-        variable_name = topic[2]
+        
+        if config['namespace'] is not None:
+            variable_name = topic[2] +'_'+ config['namespace']
+        else:
+            variable_name = topic[2]
         expression = exp_dic[msg_type]
-        save_topic2file(topic_name, variable_name, expression, bag, ofile)
+        save_topic2file(topic_name, variable_name, expression, bag, ofile, start_time, offset_time_flag)
  
 bag.close()
