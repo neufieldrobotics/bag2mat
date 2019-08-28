@@ -31,8 +31,11 @@ bglog = logging.getLogger("bag2matpy")
 logging.basicConfig(level=logging.INFO, format='%(levelname)8s  %(message)s')
 
 
-def save_topic2file(topic_name,variable_name,expression,bagfile,matfile, start_time, subtract_start_time):
+def save_topic2file(topic_name,variable_name, msg_dict, bagfile,matfile, start_time, subtract_start_time):
     bglog = logging.getLogger(__name__)
+    expression = ",".join(msg_dict.values())
+    field_names = msg_dict.keys()
+            
     data_array = []
     for topic, msg, ts in bagfile.read_messages(topics=[topic_name]):
         res = eval("{}".format(expression),{'np':np}, {'m': msg, 't':ts})
@@ -43,8 +46,13 @@ def save_topic2file(topic_name,variable_name,expression,bagfile,matfile, start_t
         
         data_array.append(res)
 
-    if data_array:    
-        savemat(matfile, {variable_name: np.array(data_array)})
+    if data_array:
+        
+        data_dict = {}
+        for field_name, column in zip(field_names, np.array(data_array).T):
+            data_dict[field_name] = column[:,None]
+
+        savemat(matfile, {variable_name: data_dict})
         bglog.info("Wrote topic: "+topic_name+" to variable: "+variable_name)
     else:
         bglog.warn("Notfound! Topic: "+topic_name)
@@ -114,7 +122,8 @@ with open(output_mat,'wb',0) as ofile:
             variable_name = topic[2] +'_'+ config['namespace']
         else:
             variable_name = topic[2]
-        expression = exp_dic[msg_type]
-        save_topic2file(topic_name, variable_name, expression, bag, ofile, start_time, subtract_start_time)
+        msg_dict = exp_dic[msg_type]
+        
+        save_topic2file(topic_name, variable_name, msg_dict , bag, ofile, start_time, subtract_start_time)
  
 bag.close()
