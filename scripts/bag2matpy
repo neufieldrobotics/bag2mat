@@ -74,10 +74,10 @@ with open(args.dictionary, 'r') as f:
 with open(args.config_file, 'r') as f:
     config = yaml.safe_load(f)
 
-if config['namespace'] is None:
-    ns = ''
+if 'namespace' in config:
+    ns = '/'+config['namespace'] 
 else:
-    ns = '/'+config['namespace']        
+    ns = ''
 
 subtract_start_time = args.subtract_start_time
 
@@ -110,7 +110,7 @@ with open(output_mat,'wb',0) as ofile:
         topic_name = ns+topic[0]
         msg_type = topic[1]
         
-        if config['namespace'] is not None:
+        if 'namespace' in config:
             variable_name = topic[2] +'_'+ config['namespace']
         else:
             variable_name = topic[2]
