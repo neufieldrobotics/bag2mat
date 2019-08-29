@@ -18,9 +18,6 @@ geometry_msgs/PoseStamped:
  position_x: m.pose.position.x
  position_y: m.pose.position.y
  position_z: m.pose.position.z
- velocity_x: m.twist.twist.linear.x
- velocity_y: m.twist.twist.linear.y
- velocity_z: m.twist.twist.linear.z
  orientation_quat_x: m.pose.orientation.x
  orientation_quat_y: m.pose.orientation.y
  orientation_quat_z: m.pose.orientation.z
@@ -74,9 +71,22 @@ sensor_msgs/Imu:
 sensor_msgs/JointState:
  msg_time: t.to_sec()
 
-sensor_msgs/Joy:
+sensor_msgs/Joy_UAS:
  msg_time: t.to_sec()
-#np.hstack([t.to_sec(), m.axes])
+ cmd_velocity_x: m.axes[0]
+ cmd_velocity_y: m.axes[1]
+ cmd_velocity_z: m.axes[2]
+ cmd_yaw_rate: m.axes[3]
+ config_code: m.axes[4]
+
+sensor_msgs/Joy_DJI_RC:
+ msg_time: t.to_sec()
+ cmd_roll: m.axes[0]
+ cmd_pitch: m.axes[1]
+ cmd_yaw_rate: m.axes[2]
+ cmd_thrust:  m.axes[3]
+ cmd_mode: m.axes[4]
+ cmd_landing_gear: m.axes[5]
 
 sensor_msgs/MagneticField: 
  msg_time: t.to_sec()
