@@ -36,8 +36,9 @@ def save_topic2dict(topic_name, msg_dict, bagfile, start_time,subtract_start_tim
     bglog = logging.getLogger(__name__)
     expression = ",".join(msg_dict.values())
     field_names = msg_dict.keys()
-            
+    print('Topic %s being saved in a dict'%(topic_name))        
     data_array = []
+    progress = 0
     for topic, msg, ts in bagfile.read_messages(topics=[topic_name]):
         res = eval("{}".format(expression),{'np':np}, {'m': msg, 't':ts})
 
@@ -46,7 +47,9 @@ def save_topic2dict(topic_name, msg_dict, bagfile, start_time,subtract_start_tim
             res = np.hstack([offset_time,res])
         
         data_array.append(res)
-
+        progress = progress + 1
+        if progress%100000 == 0:
+             bglog.info("100000 messages from the topic are added to dictionary and continuing")
     if data_array:        
         data_dict = {}
         for field_name, column in zip(field_names, np.array(data_array).T):
@@ -107,7 +110,7 @@ if not os.path.exists(output_mat_path):
 
 
 if os.path.isfile(output_mat):
-    bglog.warn("File Already Exits, over-writing - "+output_mat)
+    bglog.warn("File Already Exists, over-writing - "+output_mat)
 else:
     bglog.info("Writing to file - "+output_mat)
 
@@ -126,6 +129,7 @@ with open(output_mat,'wb',0) as ofile:
                     topic_name = '/'+ns_prefix+topic[0]
                 else:
                     topic_name = topic[0]
+                print("Current topic written:%s"%(topic_name))
                 msg_type = topic[1]
                 
                 #if 'namespace' in config:
@@ -138,8 +142,9 @@ with open(output_mat,'wb',0) as ofile:
                 
                 if data_dict:
                     ns_dict[variable_name] = copy.deepcopy(data_dict)
-            
+                
             if ns_dict:
+                bglog.info("Saving mat file")
                 if ns_prefix:
                     savemat(ofile, {ns_prefix: ns_dict})
                 else:
