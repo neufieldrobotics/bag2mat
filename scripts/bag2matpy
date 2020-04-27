@@ -12,37 +12,51 @@ from __future__ import print_function
 import roslib
 import rospy
 import rostopic
+import rospkg
+import rosbag
 
 import argparse
 import importlib
 import sys
-import rospkg
-import rosbag
 import numpy as np
 import time
 from scipy.io import savemat
 import os
 import yaml
 import logging
-import progressbar
-progressbar.streams.wrap_stderr()
+import copy
+#import progressbar
+#progressbar.streams.wrap_stderr()
 
 bglog = logging.getLogger("bag2matpy")
 logging.basicConfig(level=logging.INFO, format='%(levelname)8s  %(message)s')
 
 
-def save_topic2file(topic_name,variable_name,expression,bagfile,matfile):
+def save_topic2dict(topic_name, msg_dict, bagfile, start_time,subtract_start_time):
     bglog = logging.getLogger(__name__)
+    expression = ",".join(msg_dict.values())
+    field_names = msg_dict.keys()
+            
     data_array = []
     for topic, msg, ts in bagfile.read_messages(topics=[topic_name]):
-        res = eval("{}".format(expression), {'m': msg, 't':ts})
-        #print (ts.to_sec())
+        res = eval("{}".format(expression),{'np':np}, {'m': msg, 't':ts})
+
+        if subtract_start_time:
+            offset_time = ts.to_sec() - start_time
+            res = np.hstack([offset_time,res])
+        
         data_array.append(res)
-    if data_array:    
-        savemat(matfile, {variable_name: np.array(data_array)})
-        bglog.info("Wrote topic: "+topic_name+" to variable: "+variable_name)
+
+    if data_array:        
+        data_dict = {}
+        for field_name, column in zip(field_names, np.array(data_array).T):
+            data_dict[field_name] = column[:,None]
+        
+        return data_dict
+
     else:
         bglog.warn("Notfound! Topic: "+topic_name)
+        return None
 
 # get the file path for rospy_tutorials
 rospack = rospkg.RosPack()
@@ -53,11 +67,13 @@ parser = argparse.ArgumentParser(
                         'A simple script that can converts rosmessages to matlab mat files. \
                          \nDefine the translation of each message type in a dictionary file and use a config file to specify all the topics to be converted..\n\n'
                         )
-parser.add_argument('input_bagfile', help='Input rosbag file to input')
+parser.add_argument('-i','--input_bagfile', help='Input rosbag file to input')
+parser.add_argument('-o','--output_dir', help='Output dir for matfile')
 parser.add_argument('-c','--config_file', help='Yaml file which specifies topic names to convert',
                     default =rospack.get_path('bag2mat')+'/config/bag2matpy_config.yaml')
 parser.add_argument('-d','--dictionary', help='Dictionary file which specifies how to read the topic',
                     default =rospack.get_path('bag2mat')+'/config/bag2mat_dict.yaml')
+parser.add_argument('-s','--subtract_start_time', default=False, action="store_true" , help="Boolean flag to specify whether to include offset_time obtained by subtracting bag start_time from all timestamps")
 
 args = parser.parse_args()
 
@@ -67,29 +83,69 @@ with open(args.dictionary, 'r') as f:
 with open(args.config_file, 'r') as f:
     config = yaml.safe_load(f)
 
-if config['namespace'] is None:
-    ns = ''
+if 'namespace' in config:
+    ns_prefixes = config['namespace'] 
 else:
-    ns = '/'+config['namespace']        
+    ns_prefixes = ['']
+
+subtract_start_time = args.subtract_start_time
 
 bag = rosbag.Bag(args.input_bagfile)
-output_mat = args.input_bagfile.replace('bag','mat')
-if os.path.exists(output_mat):
-    bglog.warn("File Already Exited, over-writing - "+output_mat)
+
+output_mat_name = (os.path.basename(args.input_bagfile)).replace('.bag','.mat')
+
+if args.output_dir is None: 
+    output_mat_path = os.path.dirname(os.path.realpath(args.input_bagfile))+'/'
+else:
+    output_mat_path = os.path.realpath(args.output_dir) +'/'
+
+output_mat = output_mat_path + output_mat_name
+
+if not os.path.exists(output_mat_path):
+    os.makedirs(output_mat_path)
+    bglog.warn("output_dir doesn't exists, creating required path "+output_mat)
+
+
+if os.path.isfile(output_mat):
+    bglog.warn("File Already Exits, over-writing - "+output_mat)
 else:
     bglog.info("Writing to file - "+output_mat)
-    
-    
-#expression = "t.to_sec(), m.linear_acceleration.x, m.linear_acceleration.y, m.linear_acceleration.z, m.angular_velocity.x, m.angular_velocity.y, m.angular_velocity.z" 
-#topic_name = '/imu/data'
 
 with open(output_mat,'wb',0) as ofile:
-    savemat(ofile, {'start_time': bag.get_start_time() })
-    for topic in progressbar.progressbar(config['topic_list']):
-        topic_name = ns+topic[0]
-        msg_type = topic[1]
-        variable_name = topic[2]
-        expression = exp_dic[msg_type]
-        save_topic2file(topic_name, variable_name, expression, bag, ofile)
+    
+    start_time = bag.get_start_time()
+    savemat(ofile, {'start_time': start_time })
+    bag_topics = bag.get_type_and_topic_info().topics.keys()
+    #for topic in progressbar.progressbar(config['topic_list']):
+    for ns_prefix in ns_prefixes:
+        
+        if any([topic.startswith('/'+ns_prefix) for topic in bag_topics]):
+            ns_dict = {}
+            for topic in config['topic_list']:
+                if ns_prefix:
+                    topic_name = '/'+ns_prefix+topic[0]
+                else:
+                    topic_name = topic[0]
+                msg_type = topic[1]
+                
+                #if 'namespace' in config:
+                #    variable_name = topic[2] +'_'+ config['namespace']
+                #else:
+                variable_name = topic[2]
+                msg_dict = exp_dic[msg_type]
+                
+                data_dict = save_topic2dict(topic_name, msg_dict , bag, start_time, subtract_start_time)
+                
+                if data_dict:
+                    ns_dict[variable_name] = copy.deepcopy(data_dict)
+            
+            if ns_dict:
+                if ns_prefix:
+                    savemat(ofile, {ns_prefix: ns_dict})
+                else:
+                    savemat(ofile, {'robot': ns_dict})
+                bglog.info("Wrote namespace: "+ns_prefix+" \n")
+        else: 
+            bglog.warn("Notfound! Namespace: "+ns_prefix+'\n')
  
 bag.close()
