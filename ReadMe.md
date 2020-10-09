@@ -1,3 +1,5 @@
+### This pkg is now part of [rosbag_toolkit](https://github.com/neufieldrobotics/rosbag_toolkit) and is moved to rosbag_toolkit/bag2mat, Checkout new version at https://github.com/neufieldrobotics/rosbag_toolkit/tree/master/bag2mat
+
 # bag2mat
 
 * Takes a rosbag file and converts it to a matlab mat file based on settings specified in a Dictionary and a yaml config file.
